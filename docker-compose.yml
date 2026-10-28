@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: sgp-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?defina no .env}
+      MYSQL_USER: ${DB_USER:?defina no .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?defina no .env}
+      MYSQL_DATABASE: sgp
+    ports:
+      - "3307:3306"
+    volumes:
+      - sgp-data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+volumes:
+  sgp-data:

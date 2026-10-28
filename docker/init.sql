@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS sgp_test CHARACTER SET utf8mb4;
+GRANT ALL PRIVILEGES ON sgp_test.* TO 'sgp'@'%';
+GRANT ALL PRIVILEGES ON sgp.* TO 'sgp'@'%';
