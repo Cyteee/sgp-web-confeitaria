@@ -8,57 +8,152 @@
 </head>
 <body class="bg-light">
 <div class="container py-4">
-  <h1 class="h3 mb-4">SGP-Web &middot; Estoque da Confeitaria</h1>
+  <h1 class="h3 mb-3">SGP-Web &middot; Gestão da Confeitaria</h1>
 
-  <div class="row g-4">
-    <div class="col-md-5">
-      <form id="form-insumo" class="card card-body">
-        <h2 class="h5">Novo insumo</h2>
-        <input class="form-control mb-2" name="nome" placeholder="Nome" required>
-        <input class="form-control mb-2" name="unidade" placeholder="Unidade (g, ml, un)" required>
-        <input class="form-control mb-2" name="quantidadeEstoque" type="number" step="0.001" min="0" placeholder="Estoque" required>
-        <input class="form-control mb-2" name="estoqueMinimo" type="number" step="0.001" min="0" placeholder="Estoque mínimo" required>
-        <button class="btn btn-primary">Salvar</button>
-        <div id="erro" class="text-danger mt-2"></div>
-      </form>
-    </div>
-    <div class="col-md-7">
-      <div class="card card-body">
-        <h2 class="h5">Insumos</h2>
-        <table class="table table-sm align-middle mb-0">
-          <thead><tr><th>Nome</th><th>Estoque</th><th>Mínimo</th><th></th></tr></thead>
-          <tbody id="insumos"></tbody>
-        </table>
+  <ul class="nav nav-tabs mb-4">
+    <li class="nav-item"><a class="nav-link active" href="#" data-aba="insumos">Insumos</a></li>
+    <li class="nav-item"><a class="nav-link" href="#" data-aba="pedidos">Pedidos</a></li>
+  </ul>
+
+  <section id="aba-insumos">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <form id="form-insumo" class="card card-body">
+          <h2 class="h5">Novo insumo</h2>
+          <input class="form-control mb-2" name="nome" placeholder="Nome" required>
+          <input class="form-control mb-2" name="unidade" placeholder="Unidade (g, ml, un)" required>
+          <input class="form-control mb-2" name="quantidadeEstoque" type="number" step="0.001" min="0" placeholder="Estoque" required>
+          <input class="form-control mb-2" name="estoqueMinimo" type="number" step="0.001" min="0" placeholder="Estoque mínimo" required>
+          <button class="btn btn-primary">Salvar</button>
+        </form>
+      </div>
+      <div class="col-md-7">
+        <div class="card card-body">
+          <h2 class="h5">Insumos</h2>
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Nome</th><th>Estoque</th><th>Mínimo</th><th>Situação</th><th></th></tr></thead>
+            <tbody id="insumos"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <section id="aba-pedidos" hidden>
+    <div class="row g-4">
+      <div class="col-md-5">
+        <form id="form-pedido" class="card card-body">
+          <h2 class="h5">Novo pedido</h2>
+          <input class="form-control mb-2" name="clienteNome" placeholder="Cliente" required>
+          <select class="form-select mb-2" id="produto" required></select>
+          <input class="form-control mb-2" id="qtd" type="number" min="1" value="1">
+          <button class="btn btn-primary">Registrar pedido</button>
+        </form>
+      </div>
+      <div class="col-md-7">
+        <div class="card card-body">
+          <h2 class="h5">Pedidos</h2>
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>#</th><th>Cliente</th><th>Itens</th><th>Status</th><th></th></tr></thead>
+            <tbody id="pedidos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="mensagem" class="alert mt-4" role="alert" hidden></div>
 </div>
 
 <script>
-  const tbody = document.getElementById('insumos');
-  const erro = document.getElementById('erro');
+  const mensagem = document.getElementById('mensagem');
 
-  async function carregar() {
+  function avisar(texto, tipo) {
+    mensagem.textContent = texto;
+    mensagem.className = `alert alert-${tipo} mt-4`;
+    mensagem.hidden = !texto;
+  }
+
+  async function chamar(url, opcoes) {
+    const r = await fetch(url, opcoes);
+    if (!r.ok) {
+      const corpo = await r.json().catch(() => ({}));
+      avisar(corpo.erro || 'Dados inválidos', 'danger');
+      return null;
+    }
+    return r.status === 204 ? true : r.json();
+  }
+
+  function celula(tr, texto) {
+    const td = document.createElement('td');
+    td.textContent = texto;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function botao(texto, classe, acao) {
+    const b = document.createElement('button');
+    b.className = `btn btn-sm ${classe}`;
+    b.textContent = texto;
+    b.onclick = acao;
+    return b;
+  }
+
+  async function carregarInsumos() {
     const insumos = await (await fetch('/api/insumos')).json();
+    const tbody = document.getElementById('insumos');
     tbody.innerHTML = '';
     for (const i of insumos) {
       const tr = document.createElement('tr');
       if (i.abaixoDoMinimo) tr.className = 'table-warning';
-      for (const texto of [i.nome, `${i.quantidadeEstoque} ${i.unidade}`, i.estoqueMinimo]) {
-        const td = document.createElement('td');
-        td.textContent = texto;
-        tr.appendChild(td);
-      }
+      celula(tr, i.nome);
+      celula(tr, `${i.quantidadeEstoque} ${i.unidade}`);
+      celula(tr, i.estoqueMinimo);
+      celula(tr, i.abaixoDoMinimo ? 'Abaixo do mínimo' : 'OK').className = i.abaixoDoMinimo ? 'fw-bold text-danger' : '';
       const acao = document.createElement('td');
-      const botao = document.createElement('button');
-      botao.className = 'btn btn-sm btn-outline-danger';
-      botao.textContent = 'Excluir';
-      botao.onclick = async () => {
-        const r = await fetch(`/api/insumos/${i.id}`, { method: 'DELETE' });
-        erro.textContent = r.ok ? '' : (await r.json()).erro;
-        carregar();
-      };
-      acao.appendChild(botao);
+      acao.appendChild(botao('Excluir', 'btn-outline-danger', async () => {
+        avisar('', 'danger');
+        await chamar(`/api/insumos/${i.id}`, { method: 'DELETE' });
+        carregarInsumos();
+      }));
+      tr.appendChild(acao);
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function carregarProdutos() {
+    const produtos = await (await fetch('/api/produtos')).json();
+    const select = document.getElementById('produto');
+    select.innerHTML = '';
+    for (const p of produtos) {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = `${p.nome} (R$ ${p.preco})`;
+      select.appendChild(o);
+    }
+  }
+
+  async function carregarPedidos() {
+    const pedidos = await (await fetch('/api/pedidos')).json();
+    const tbody = document.getElementById('pedidos');
+    tbody.innerHTML = '';
+    for (const p of pedidos) {
+      const tr = document.createElement('tr');
+      celula(tr, p.id);
+      celula(tr, p.clienteNome);
+      celula(tr, p.itens.map(i => `${i.quantidade}x ${i.produto}`).join(', '));
+      const status = celula(tr, p.status);
+      status.className = p.status === 'CONFIRMADO' ? 'text-success fw-bold' : 'text-secondary';
+      const acao = document.createElement('td');
+      if (p.status === 'ABERTO') {
+        acao.appendChild(botao('Confirmar', 'btn-success', async () => {
+          avisar('', 'danger');
+          const r = await chamar(`/api/pedidos/${p.id}/confirmar`, { method: 'POST' });
+          if (r) avisar(`Pedido ${r.id} confirmado e estoque atualizado.`, 'success');
+          carregarPedidos();
+          carregarInsumos();
+        }));
+      }
       tr.appendChild(acao);
       tbody.appendChild(tr);
     }
@@ -67,17 +162,38 @@
   document.getElementById('form-insumo').addEventListener('submit', async e => {
     e.preventDefault();
     const dados = Object.fromEntries(new FormData(e.target));
-    const r = await fetch('/api/insumos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dados)
+    const r = await chamar('/api/insumos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados)
     });
-    erro.textContent = r.ok ? '' : 'Dados inválidos';
-    if (r.ok) e.target.reset();
-    carregar();
+    if (r) { avisar('', 'danger'); e.target.reset(); }
+    carregarInsumos();
   });
 
-  carregar();
+  document.getElementById('form-pedido').addEventListener('submit', async e => {
+    e.preventDefault();
+    const corpo = {
+      clienteNome: e.target.clienteNome.value,
+      itens: [{ produtoId: Number(document.getElementById('produto').value), quantidade: Number(document.getElementById('qtd').value) }]
+    };
+    const r = await chamar('/api/pedidos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo)
+    });
+    if (r) { avisar(`Pedido ${r.id} registrado.`, 'info'); e.target.reset(); }
+    carregarPedidos();
+  });
+
+  document.querySelectorAll('[data-aba]').forEach(link => link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('[data-aba]').forEach(l => l.classList.toggle('active', l === link));
+    for (const nome of ['insumos', 'pedidos']) {
+      document.getElementById(`aba-${nome}`).hidden = nome !== link.dataset.aba;
+    }
+    avisar('', 'danger');
+  }));
+
+  carregarInsumos();
+  carregarProdutos();
+  carregarPedidos();
 </script>
 </body>
 </html>

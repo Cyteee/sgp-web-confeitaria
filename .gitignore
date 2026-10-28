@@ -37,3 +37,6 @@ build/
 application-local*.properties
 application-local*.yml
 *.log
+
+### Entrega do artigo ###
+entrega-pi.zip

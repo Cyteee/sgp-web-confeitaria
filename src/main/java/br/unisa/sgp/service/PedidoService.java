@@ -50,6 +50,11 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
+    public List<Pedido> listar() {
+        return pedidoRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
     public Pedido buscar(Long id) {
         return pedidoRepository.findById(id).orElseThrow(() -> new PedidoNaoEncontradoException(id));
     }

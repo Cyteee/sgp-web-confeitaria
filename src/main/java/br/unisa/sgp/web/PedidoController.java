@@ -9,12 +9,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/pedidos")
+@Transactional
 public class PedidoController {
 
     public record ItemRequest(@NotNull Long produtoId, @Min(1) int quantidade) {
@@ -23,9 +25,13 @@ public class PedidoController {
     public record PedidoRequest(@NotBlank String clienteNome, @NotEmpty List<@Valid ItemRequest> itens) {
     }
 
-    public record PedidoResponse(Long id, String clienteNome, String status) {
+    public record ItemResponse(String produto, int quantidade) {
+    }
+
+    public record PedidoResponse(Long id, String clienteNome, String status, List<ItemResponse> itens) {
         static PedidoResponse de(Pedido p) {
-            return new PedidoResponse(p.getId(), p.getClienteNome(), p.getStatus().name());
+            return new PedidoResponse(p.getId(), p.getClienteNome(), p.getStatus().name(),
+                    p.getItens().stream().map(i -> new ItemResponse(i.getProduto().getNome(), i.getQuantidade())).toList());
         }
     }
 
@@ -42,6 +48,11 @@ public class PedidoController {
                 .map(i -> new ItemSolicitado(i.produtoId(), i.quantidade()))
                 .toList();
         return PedidoResponse.de(pedidoService.criar(request.clienteNome(), itens));
+    }
+
+    @GetMapping
+    public List<PedidoResponse> listar() {
+        return pedidoService.listar().stream().map(PedidoResponse::de).toList();
     }
 
     @GetMapping("/{id}")
